@@ -181,58 +181,6 @@ export default function Hero({ scrollY }) {
         </motion.div>
       </div>
 
-      {/* Scroll indicator */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 2, duration: 1 }}
-        style={{
-          position: 'absolute',
-          bottom: '2.5rem',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '0.5rem',
-          color: 'rgba(245,240,232,0.4)',
-          fontSize: '0.72rem',
-          letterSpacing: '0.15em',
-          textTransform: 'uppercase',
-          pointerEvents: 'none',
-        }}
-      >
-        <ScrollPulse />
-        Scroll to explore
-      </motion.div>
     </section>
-  );
-}
-
-function ScrollPulse() {
-  return (
-    <div
-      style={{
-        width: '26px',
-        height: '42px',
-        border: '1.5px solid rgba(245,240,232,0.3)',
-        borderRadius: '13px',
-        position: 'relative',
-        display: 'flex',
-        justifyContent: 'center',
-        paddingTop: '6px',
-      }}
-    >
-      <motion.div
-        animate={{ y: [0, 12, 0], opacity: [1, 0, 1] }}
-        transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
-        style={{
-          width: '4px',
-          height: '4px',
-          borderRadius: '50%',
-          background: '#D4A853',
-        }}
-      />
-    </div>
   );
 }
