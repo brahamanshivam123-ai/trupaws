@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '../supabase';
 
 const ALL_SERVICES = [
   'Dog Walking',
@@ -76,26 +77,46 @@ function ProfileCard({ title, icon, children }) {
 }
 
 export default function SitterDashboard({ user, onSignOut }) {
-  const loadSaved = () => {
-    try {
-      return JSON.parse(localStorage.getItem('trupaws_sitter_profile') || '{}');
-    } catch {
-      return {};
-    }
-  };
-
-  const initial = loadSaved();
   const [profile, setProfile] = useState({
-    bio: initial.bio || '',
-    services: initial.services || [],
-    rate: initial.rate || '',
-    availability: initial.availability || [],
-    experience: initial.experience || '',
-    pets: initial.pets || '',
-    phone: initial.phone || '',
+    bio: '',
+    services: [],
+    rate: '',
+    availability: [],
+    experience: '',
+    pets: '',
+    phone: '',
   });
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saveError, setSaveError] = useState(null);
   const [focusedField, setFocusedField] = useState(null);
+
+  // Load existing sitter_profile from Supabase on mount
+  useEffect(() => {
+    if (!user?.id) return;
+    const load = async () => {
+      setProfileLoading(true);
+      const { data } = await supabase
+        .from('sitter_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      if (data) {
+        setProfile({
+          bio:          data.bio          || '',
+          services:     data.services     || [],
+          rate:         data.rate         != null ? String(data.rate) : '',
+          availability: data.availability || [],
+          experience:   data.experience   != null ? String(data.experience) : '',
+          pets:         data.pets         || '',
+          phone:        data.phone        || '',
+        });
+      }
+      setProfileLoading(false);
+    };
+    load();
+  }, [user?.id]);
 
   const toggleService = (s) =>
     setProfile((p) => ({
@@ -113,10 +134,31 @@ export default function SitterDashboard({ user, onSignOut }) {
         : [...p.availability, d],
     }));
 
-  const handleSave = () => {
-    localStorage.setItem('trupaws_sitter_profile', JSON.stringify(profile));
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError(null);
+
+    const { error } = await supabase.from('sitter_profiles').upsert({
+      id:           user.id,
+      bio:          profile.bio,
+      services:     profile.services,
+      rate:         profile.rate !== ''         ? parseFloat(profile.rate)           : null,
+      availability: profile.availability,
+      experience:   profile.experience !== ''   ? parseInt(profile.experience, 10)   : null,
+      pets:         profile.pets,
+      phone:        profile.phone,
+      is_active:    true,
+      updated_at:   new Date().toISOString(),
+    });
+
+    setSaving(false);
+
+    if (error) {
+      setSaveError(error.message);
+    } else {
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    }
   };
 
   // Completion %
@@ -657,12 +699,15 @@ export default function SitterDashboard({ user, onSignOut }) {
         >
           <motion.button
             onClick={handleSave}
-            whileHover={{ scale: 1.02, boxShadow: '0 8px 36px rgba(212,168,83,0.42)' }}
-            whileTap={{ scale: 0.98 }}
+            disabled={saving || profileLoading}
+            whileHover={!saving ? { scale: 1.02, boxShadow: '0 8px 36px rgba(212,168,83,0.42)' } : {}}
+            whileTap={!saving ? { scale: 0.98 } : {}}
             style={{
               width: '100%',
               background: savedSuccess
                 ? 'linear-gradient(135deg, #4ade80, #22c55e)'
+                : saving
+                ? 'rgba(212,168,83,0.5)'
                 : 'linear-gradient(135deg, #D4A853 0%, #C9952A 100%)',
               color: '#1A1A1A',
               border: 'none',
@@ -670,13 +715,36 @@ export default function SitterDashboard({ user, onSignOut }) {
               padding: '1.1rem',
               fontSize: '1rem',
               fontWeight: 700,
-              cursor: 'pointer',
+              cursor: saving ? 'default' : 'pointer',
               fontFamily: "'Inter', sans-serif",
               letterSpacing: '0.03em',
               transition: 'background 0.4s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
             }}
           >
-            {savedSuccess ? '✓ Profile Saved!' : 'Save My Profile'}
+            {saving ? (
+              <>
+                <motion.span
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                  style={{
+                    width: '16px', height: '16px',
+                    border: '2px solid rgba(26,26,26,0.25)',
+                    borderTop: '2px solid #1A1A1A',
+                    borderRadius: '50%',
+                    display: 'inline-block',
+                  }}
+                />
+                Saving...
+              </>
+            ) : savedSuccess ? (
+              '✓ Profile Saved!'
+            ) : (
+              'Save My Profile'
+            )}
           </motion.button>
 
           <AnimatePresence>
@@ -691,13 +759,25 @@ export default function SitterDashboard({ user, onSignOut }) {
                   fontSize: '0.82rem',
                   color: 'rgba(74,222,128,0.75)',
                   fontWeight: 400,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.4rem',
                 }}
               >
-                <span>Your profile has been saved locally</span>
+                Profile saved to Supabase · visible to pet owners
+              </motion.div>
+            )}
+            {saveError && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                style={{
+                  textAlign: 'center',
+                  marginTop: '0.9rem',
+                  fontSize: '0.82rem',
+                  color: 'rgba(255,120,100,0.85)',
+                  fontWeight: 400,
+                }}
+              >
+                Error: {saveError}
               </motion.div>
             )}
           </AnimatePresence>
@@ -705,7 +785,7 @@ export default function SitterDashboard({ user, onSignOut }) {
           <p
             style={{
               textAlign: 'center',
-              marginTop: savedSuccess ? '0.5rem' : '1rem',
+              marginTop: '1rem',
               fontSize: '0.75rem',
               color: 'rgba(245,240,232,0.22)',
               fontWeight: 300,

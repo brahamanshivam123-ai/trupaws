@@ -1,5 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '../supabase';
+
+// Pick a deterministic emoji avatar from a UUID's first hex char
+const AVATARS = ['👩','🧑','👨','👩‍🦰','👨‍🦱','👩‍🦱','👨‍🌾','👩‍💼','🧑‍🦱','👩‍🦳'];
+function avatarFor(id) {
+  return AVATARS[parseInt((id || '0')[0], 16) % AVATARS.length];
+}
 
 const MOCK_SITTERS = [
   {
@@ -85,11 +92,52 @@ const MOCK_SITTERS = [
 const LOCATIONS = ['All Areas', 'Salmon Arm', 'Sicamous', 'Chase', 'Enderby', 'Armstrong', 'Sorrento'];
 
 export default function PetOwnerDashboard({ user, onSignOut }) {
+  const [sitters, setSitters] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [usingMock, setUsingMock] = useState(false);
   const [search, setSearch] = useState('');
   const [locationFilter, setLocationFilter] = useState('All Areas');
   const [contactedId, setContactedId] = useState(null);
 
-  const filtered = MOCK_SITTERS.filter((s) => {
+  useEffect(() => {
+    const load = async () => {
+      setLoadingData(true);
+
+      const { data, error } = await supabase
+        .from('sitter_profiles')
+        .select('*, profiles!inner(name, location)')
+        .eq('is_active', true);
+
+      if (!error && data && data.length > 0) {
+        // Shape Supabase rows into the card format
+        setSitters(
+          data.map((s) => ({
+            id:       s.id,
+            name:     s.profiles?.name     || 'Unknown',
+            location: s.profiles?.location || 'Shuswap',
+            emoji:    avatarFor(s.id),
+            rating:   null,
+            reviews:  0,
+            services: s.services     || [],
+            rate:     s.rate         || 0,
+            bio:      s.bio          || 'Local pet sitter in the Shuswap.',
+            available: true,
+            badge:    s.is_verified  ? 'Verified' : 'New',
+          }))
+        );
+        setUsingMock(false);
+      } else {
+        // No live sitters yet — show mock data so the page isn't empty
+        setSitters(MOCK_SITTERS);
+        setUsingMock(true);
+      }
+
+      setLoadingData(false);
+    };
+    load();
+  }, []);
+
+  const filtered = sitters.filter((s) => {
     const term = search.toLowerCase();
     const matchesSearch =
       s.name.toLowerCase().includes(term) ||
@@ -190,7 +238,7 @@ export default function PetOwnerDashboard({ user, onSignOut }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          style={{ marginBottom: '2.5rem' }}
+          style={{ marginBottom: '2rem' }}
         >
           <h1
             style={{
@@ -205,10 +253,38 @@ export default function PetOwnerDashboard({ user, onSignOut }) {
             Find Your Perfect Sitter
           </h1>
           <p style={{ color: 'rgba(245,240,232,0.45)', fontSize: '0.95rem', fontWeight: 300 }}>
-            {filtered.length} trusted sitters serving{' '}
-            {locationFilter === 'All Areas' ? 'the Shuswap' : locationFilter}
+            {loadingData ? 'Loading sitters…' : `${filtered.length} trusted sitters serving ${locationFilter === 'All Areas' ? 'the Shuswap' : locationFilter}`}
           </p>
         </motion.div>
+
+        {/* Mock-data notice — shown only when no live sitters exist yet */}
+        <AnimatePresence>
+          {usingMock && !loadingData && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                background: 'rgba(212,168,83,0.07)',
+                border: '1px solid rgba(212,168,83,0.2)',
+                borderRadius: '12px',
+                padding: '0.7rem 1.1rem',
+                marginBottom: '1.8rem',
+                fontSize: '0.82rem',
+                color: 'rgba(212,168,83,0.8)',
+                fontWeight: 400,
+              }}
+            >
+              <span>✨</span>
+              <span>
+                Showing sample sitters — real profiles will appear here once sitters sign up in your area.
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Search + filter bar */}
         <motion.div
