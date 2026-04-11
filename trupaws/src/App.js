@@ -41,24 +41,54 @@ export default function App() {
   const [modalIntent, setModalIntent] = useState('find');
 
   useEffect(() => {
-    // Restore existing session on mount
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session) {
-        const profile = await fetchProfile(session);
-        setUser(profile);
-        setPage(profile.role === 'sitter' ? 'sitter-dashboard' : 'owner-dashboard');
+    let ready = false;
+    // Call once — guards against the timeout and the finally both firing
+    const markReady = () => {
+      if (!ready) {
+        ready = true;
+        setAuthReady(true);
       }
-      setAuthReady(true);
-    });
+    };
+
+    // Safety net: if getSession() or fetchProfile() hangs (network down,
+    // Supabase project paused, CORS rejection), show the landing page anyway.
+    const timeout = setTimeout(() => {
+      console.warn('[App] Auth check timed out after 5 s — showing landing page.');
+      markReady();
+    }, 5000);
+
+    const init = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('[App] getSession error:', error);
+        } else if (session) {
+          const profile = await fetchProfile(session);
+          setUser(profile);
+          setPage(profile.role === 'sitter' ? 'sitter-dashboard' : 'owner-dashboard');
+        }
+      } catch (err) {
+        console.error('[App] Auth init exception:', err);
+      } finally {
+        clearTimeout(timeout);
+        markReady();
+      }
+    };
+
+    init();
 
     // React to every future auth event (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED…)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session) {
-          const profile = await fetchProfile(session);
-          setUser(profile);
-          setPage(profile.role === 'sitter' ? 'sitter-dashboard' : 'owner-dashboard');
-          setShowModal(false);
+          try {
+            const profile = await fetchProfile(session);
+            setUser(profile);
+            setPage(profile.role === 'sitter' ? 'sitter-dashboard' : 'owner-dashboard');
+            setShowModal(false);
+          } catch (err) {
+            console.error('[App] fetchProfile error on SIGNED_IN:', err);
+          }
         }
         if (event === 'SIGNED_OUT') {
           setUser(null);
@@ -67,7 +97,10 @@ export default function App() {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleOpenModal = (intent) => {
