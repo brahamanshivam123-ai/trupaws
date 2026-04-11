@@ -1,6 +1,5 @@
-import { Suspense, useRef, useEffect, useState } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useState, useEffect } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import HowItWorks from './components/HowItWorks';
@@ -8,88 +7,79 @@ import TrustBar from './components/TrustBar';
 import SitterCards from './components/SitterCards';
 import Testimonials from './components/Testimonials';
 import Footer from './components/Footer';
-
-gsap.registerPlugin(ScrollTrigger);
-
-// Lazy-load the heavy 3D scene
-const Scene = (() => {
-  const { lazy } = require('react');
-  return lazy(() => import('./components/Scene'));
-})();
-
-function LoadingFallback() {
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: '#0D1B08',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 0,
-      }}
-    >
-      <div
-        style={{
-          width: '40px',
-          height: '40px',
-          border: '2px solid rgba(212,168,83,0.3)',
-          borderTop: '2px solid #D4A853',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-        }}
-      />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
-}
+import SignupModal from './components/SignupModal';
+import PetOwnerDashboard from './components/PetOwnerDashboard';
+import SitterDashboard from './components/SitterDashboard';
 
 export default function App() {
-  const scrollRef = useRef(0);
-  const [scrollProgress, setScrollProgress] = useState(0);
+  const [user, setUser] = useState(null);
+  const [page, setPage] = useState('landing');
+  const [showModal, setShowModal] = useState(false);
+  const [modalIntent, setModalIntent] = useState('find');
 
   useEffect(() => {
-    const onScroll = () => {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      setScrollProgress(window.scrollY / max);
-      scrollRef.current = window.scrollY;
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    try {
+      const saved = localStorage.getItem('trupaws_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setUser(parsed);
+        setPage(parsed.role === 'sitter' ? 'sitter-dashboard' : 'owner-dashboard');
+      }
+    } catch {
+      // ignore
+    }
   }, []);
+
+  const handleOpenModal = (intent) => {
+    setModalIntent(intent);
+    setShowModal(true);
+  };
+
+  const handleSignup = (userData) => {
+    localStorage.setItem('trupaws_user', JSON.stringify(userData));
+    setUser(userData);
+    setShowModal(false);
+    setPage(userData.role === 'sitter' ? 'sitter-dashboard' : 'owner-dashboard');
+  };
+
+  const handleSignOut = () => {
+    localStorage.removeItem('trupaws_user');
+    setUser(null);
+    setPage('landing');
+  };
 
   return (
     <>
-      {/* Fixed 3D canvas layer */}
-      <Suspense fallback={<LoadingFallback />}>
-        <Scene scrollProgress={scrollProgress} />
-      </Suspense>
-
-      {/* Scroll content layer */}
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 1,
-          pointerEvents: 'none',
-        }}
-      >
-        <Navbar />
-
-        {/* Hero — full viewport, transparent over 3D */}
-        <div style={{ pointerEvents: 'auto' }}>
-          <Hero />
-        </div>
-
-        {/* Content sections — opaque backgrounds */}
-        <div style={{ pointerEvents: 'auto' }}>
+      {page === 'landing' && (
+        <>
+          <Navbar user={user} onOpenModal={handleOpenModal} onSignOut={handleSignOut} />
+          <Hero onFindSitter={() => handleOpenModal('find')} onBecomeSitter={() => handleOpenModal('become')} />
           <HowItWorks />
           <TrustBar />
           <SitterCards />
           <Testimonials />
           <Footer />
-        </div>
-      </div>
+        </>
+      )}
+
+      {page === 'owner-dashboard' && (
+        <PetOwnerDashboard user={user} onSignOut={handleSignOut} />
+      )}
+
+      {page === 'sitter-dashboard' && (
+        <SitterDashboard user={user} onSignOut={handleSignOut} />
+      )}
+
+      <AnimatePresence>
+        {showModal && (
+          <SignupModal
+            key="signup-modal"
+            intent={modalIntent}
+            onClose={() => setShowModal(false)}
+            onSuccess={handleSignup}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

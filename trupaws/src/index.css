@@ -21,7 +21,7 @@ html {
 }
 
 body {
-  background: var(--dark);
+  background: #080F05;
   color: var(--cream);
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
