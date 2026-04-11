@@ -97,23 +97,35 @@ export default function SitterDashboard({ user, onSignOut }) {
     if (!user?.id) return;
     const load = async () => {
       setProfileLoading(true);
-      const { data } = await supabase
-        .from('sitter_profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      if (data) {
-        setProfile({
-          bio:          data.bio          || '',
-          services:     data.services     || [],
-          rate:         data.rate         != null ? String(data.rate) : '',
-          availability: data.availability || [],
-          experience:   data.experience   != null ? String(data.experience) : '',
-          pets:         data.pets         || '',
-          phone:        data.phone        || '',
-        });
+      try {
+        // maybeSingle() returns null (not an error) when no row exists yet
+        const { data, error } = await supabase
+          .from('sitter_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('[SitterDashboard] Load error:', error);
+        } else if (data) {
+          console.log('[SitterDashboard] Loaded profile:', data);
+          setProfile({
+            bio:          data.bio          || '',
+            services:     data.services     || [],
+            rate:         data.rate         != null ? String(data.rate) : '',
+            availability: data.availability || [],
+            experience:   data.experience   != null ? String(data.experience) : '',
+            pets:         data.pets         || '',
+            phone:        data.phone        || '',
+          });
+        } else {
+          console.log('[SitterDashboard] No profile row yet — fresh sitter.');
+        }
+      } catch (err) {
+        console.error('[SitterDashboard] Load exception:', err);
+      } finally {
+        setProfileLoading(false);
       }
-      setProfileLoading(false);
     };
     load();
   }, [user?.id]);
@@ -135,29 +147,71 @@ export default function SitterDashboard({ user, onSignOut }) {
     }));
 
   const handleSave = async () => {
+    if (!user?.id) {
+      setSaveError('No user session found — please sign out and sign in again.');
+      return;
+    }
+
     setSaving(true);
     setSaveError(null);
 
-    const { error } = await supabase.from('sitter_profiles').upsert({
-      id:           user.id,
+    const payload = {
       bio:          profile.bio,
       services:     profile.services,
-      rate:         profile.rate !== ''         ? parseFloat(profile.rate)           : null,
+      rate:         profile.rate !== ''       ? parseFloat(profile.rate)         : null,
       availability: profile.availability,
-      experience:   profile.experience !== ''   ? parseInt(profile.experience, 10)   : null,
+      experience:   profile.experience !== '' ? parseInt(profile.experience, 10) : null,
       pets:         profile.pets,
       phone:        profile.phone,
       is_active:    true,
       updated_at:   new Date().toISOString(),
-    });
+    };
 
-    setSaving(false);
+    try {
+      // Check whether a row already exists for this sitter.
+      // Upsert + RLS can 406 on the INSERT leg when the row is new,
+      // so we do an explicit INSERT or UPDATE instead.
+      const { data: existing, error: checkError } = await supabase
+        .from('sitter_profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
 
-    if (error) {
-      setSaveError(error.message);
-    } else {
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
+      if (checkError) {
+        console.error('[SitterDashboard] Existence check error:', checkError);
+        setSaveError(checkError.message);
+        return;
+      }
+
+      let saveError;
+      if (existing) {
+        console.log('[SitterDashboard] Row exists — running UPDATE');
+        const { error } = await supabase
+          .from('sitter_profiles')
+          .update(payload)
+          .eq('id', user.id);
+        saveError = error;
+      } else {
+        console.log('[SitterDashboard] No row yet — running INSERT');
+        const { error } = await supabase
+          .from('sitter_profiles')
+          .insert({ id: user.id, ...payload });
+        saveError = error;
+      }
+
+      if (saveError) {
+        console.error('[SitterDashboard] Save error:', saveError);
+        setSaveError(saveError.message);
+      } else {
+        console.log('[SitterDashboard] Save succeeded.');
+        setSavedSuccess(true);
+        setTimeout(() => setSavedSuccess(false), 3000);
+      }
+    } catch (err) {
+      console.error('[SitterDashboard] Save exception:', err);
+      setSaveError(err?.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
