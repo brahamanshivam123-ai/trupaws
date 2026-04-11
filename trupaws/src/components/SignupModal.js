@@ -68,32 +68,46 @@ export default function SignupModal({ intent, onClose }) {
     setLoading(true);
     setAuthError(null);
 
-    const { data, error } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: {
-        data: {
-          name: form.name,
-          role,
-          location: form.location,
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: {
+          data: {
+            name: form.name,
+            role,
+            location: form.location,
+          },
         },
-      },
-    });
+      });
 
-    setLoading(false);
+      console.log('[SignupModal] signUp response:', { data, error });
 
-    if (error) {
-      setAuthError(error.message);
-      return;
-    }
+      if (error) {
+        console.error('[SignupModal] Supabase error:', error);
+        setAuthError(error.message);
+        setLoading(false);
+        return;
+      }
 
-    if (data.session) {
-      // Email confirmation is OFF — user is immediately logged in.
-      // onAuthStateChange in App.js picks this up and closes the modal.
-      // Nothing to do here.
-    } else {
-      // Email confirmation is ON — ask the user to check their inbox.
-      setEmailSent(true);
+      if (data?.session) {
+        // Email confirmation OFF — session returned immediately.
+        // App.js onAuthStateChange fires and routes to dashboard.
+        // Loading stays true briefly until the modal unmounts.
+      } else if (data?.user) {
+        // Email confirmation ON — user created but not yet confirmed.
+        setEmailSent(true);
+        setLoading(false);
+      } else {
+        // Unexpected: no session and no user
+        console.error('[SignupModal] Unexpected empty response:', data);
+        setAuthError('Signup returned an unexpected response. Please try again.');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('[SignupModal] Caught exception:', err);
+      setAuthError(err?.message || 'Something went wrong. Check your connection and try again.');
+      setLoading(false);
     }
   };
 
