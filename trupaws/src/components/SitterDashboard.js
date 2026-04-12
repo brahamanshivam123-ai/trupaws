@@ -76,7 +76,7 @@ function ProfileCard({ title, icon, children }) {
   );
 }
 
-export default function SitterDashboard({ user, onSignOut }) {
+export default function SitterDashboard({ user, onSignOut, onGoHome }) {
   const [profile, setProfile] = useState({
     bio: '',
     services: [],
@@ -243,18 +243,29 @@ export default function SitterDashboard({ user, onSignOut }) {
           justifyContent: 'space-between',
         }}
       >
-        <div
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: '1.3rem',
-            fontWeight: 700,
-            color: '#F5F0E8',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-          }}
-        >
-          🐾 Tru<span style={{ color: '#D4A853' }}>Paws</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <motion.button
+            onClick={onGoHome}
+            whileHover={{ x: -2, color: '#D4A853' }}
+            whileTap={{ scale: 0.93 }}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'rgba(245,240,232,0.4)', fontSize: '1.1rem',
+              padding: '0.2rem 0.1rem', lineHeight: 1, display: 'flex', alignItems: 'center',
+            }}
+            title="Back to home"
+          >
+            ←
+          </motion.button>
+          <div
+            style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: '1.3rem', fontWeight: 700, color: '#F5F0E8',
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+            }}
+          >
+            🐾 Tru<span style={{ color: '#D4A853' }}>Paws</span>
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div

@@ -166,7 +166,6 @@ export default function SignupModal({ intent, onClose }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.22 }}
-      onClick={onClose}
       style={{
         position: 'fixed',
         inset: 0,

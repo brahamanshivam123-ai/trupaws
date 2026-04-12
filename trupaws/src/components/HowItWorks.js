@@ -163,6 +163,7 @@ export default function HowItWorks() {
 
   return (
     <section
+      id="how-it-works"
       ref={sectionRef}
       style={{
         position: 'relative',

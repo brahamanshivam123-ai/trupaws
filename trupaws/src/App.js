@@ -144,7 +144,7 @@ export default function App() {
     <>
       {page === 'landing' && (
         <>
-          <Navbar user={user} onOpenModal={handleOpenModal} onSignOut={handleSignOut} />
+          <Navbar user={user} onOpenModal={handleOpenModal} onSignOut={handleSignOut} onGoHome={() => setPage('landing')} />
           <Hero
             onFindSitter={() => handleOpenModal('find')}
             onBecomeSitter={() => handleOpenModal('become')}
@@ -153,16 +153,55 @@ export default function App() {
           <TrustBar />
           <SitterCards />
           <Testimonials />
+          <section
+            id="about"
+            style={{
+              padding: 'clamp(4rem, 10vw, 7rem) clamp(1.5rem, 5vw, 4rem)',
+              background: 'linear-gradient(180deg, rgba(13,27,8,0) 0%, rgba(8,15,5,1) 100%)',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ maxWidth: '640px', margin: '0 auto' }}>
+              <div style={{
+                fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.2em',
+                textTransform: 'uppercase', color: '#D4A853', marginBottom: '1rem',
+              }}>
+                About TruPaws
+              </div>
+              <h2 style={{
+                fontFamily: "'Playfair Display', serif",
+                fontSize: 'clamp(1.8rem, 4vw, 2.8rem)',
+                fontWeight: 700, color: '#F5F0E8', lineHeight: 1.2, marginBottom: '1.4rem',
+              }}>
+                Built for Shuswap, BC
+              </h2>
+              <p style={{
+                fontSize: '1rem', color: 'rgba(245,240,232,0.58)', lineHeight: 1.8,
+                fontWeight: 300, marginBottom: '1rem',
+              }}>
+                TruPaws is a local pet-sitting marketplace connecting pet owners with trusted,
+                vetted sitters across Salmon Arm, Sicamous, Chase, Enderby, Armstrong, Sorrento,
+                and surrounding communities.
+              </p>
+              <p style={{
+                fontSize: '1rem', color: 'rgba(245,240,232,0.58)', lineHeight: 1.8, fontWeight: 300,
+              }}>
+                We believe your pets deserve care from someone who knows your neighbourhood —
+                not a corporate chain. Every sitter on TruPaws is a local community member,
+                reviewed by real Shuswap families.
+              </p>
+            </div>
+          </section>
           <Footer />
         </>
       )}
 
       {page === 'owner-dashboard' && (
-        <PetOwnerDashboard user={user} onSignOut={handleSignOut} />
+        <PetOwnerDashboard user={user} onSignOut={handleSignOut} onGoHome={() => setPage('landing')} />
       )}
 
       {page === 'sitter-dashboard' && (
-        <SitterDashboard user={user} onSignOut={handleSignOut} />
+        <SitterDashboard user={user} onSignOut={handleSignOut} onGoHome={() => setPage('landing')} />
       )}
 
       <AnimatePresence>

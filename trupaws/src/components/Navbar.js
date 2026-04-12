@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '../supabase';
 
-export default function Navbar({ user, onOpenModal, onSignOut }) {
+export default function Navbar({ user, onOpenModal, onSignOut, onGoHome }) {
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    onSignOut?.();
+  };
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -11,11 +16,14 @@ export default function Navbar({ user, onOpenModal, onSignOut }) {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  const scrollTo = (id) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+
   const navLinks = [
-    { label: 'Find a Sitter', action: () => onOpenModal?.('find') },
-    { label: 'How It Works', action: null },
+    { label: 'Find a Sitter',   action: () => onOpenModal?.('find') },
+    { label: 'How It Works',    action: () => scrollTo('how-it-works') },
     { label: 'Become a Sitter', action: () => onOpenModal?.('become') },
-    { label: 'About', action: null },
+    { label: 'About',           action: () => scrollTo('about') },
   ];
 
   return (
@@ -43,6 +51,7 @@ export default function Navbar({ user, onOpenModal, onSignOut }) {
       >
         {/* Logo */}
         <div
+          onClick={onGoHome}
           style={{
             fontFamily: "'Playfair Display', serif",
             fontSize: '1.45rem',
@@ -95,7 +104,7 @@ export default function Navbar({ user, onOpenModal, onSignOut }) {
               <motion.button
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
-                onClick={onSignOut}
+                onClick={handleSignOut}
                 style={{
                   background: 'rgba(245,240,232,0.07)',
                   color: 'rgba(245,240,232,0.6)',
@@ -224,7 +233,7 @@ export default function Navbar({ user, onOpenModal, onSignOut }) {
                   Signed in as <strong style={{ color: '#F5F0E8' }}>{user.name}</strong>
                 </div>
                 <button
-                  onClick={() => { setMenuOpen(false); onSignOut?.(); }}
+                  onClick={() => { setMenuOpen(false); handleSignOut(); }}
                   style={{
                     background: 'rgba(245,240,232,0.07)',
                     color: 'rgba(245,240,232,0.7)',
