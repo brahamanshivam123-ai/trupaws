@@ -43,6 +43,7 @@ const labelStyle = {
 
 // onSuccess prop removed — App.js reacts to onAuthStateChange instead
 export default function SignupModal({ intent, onClose }) {
+  const [mode, setMode] = useState('signup'); // 'signup' | 'signin'
   const [role, setRole] = useState(intent === 'become' ? 'sitter' : 'owner');
   const [form, setForm] = useState({ name: '', email: '', password: '', location: '' });
   const [errors, setErrors] = useState({});
@@ -51,12 +52,18 @@ export default function SignupModal({ intent, onClose }) {
   const [emailSent, setEmailSent] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
 
+  const switchMode = (next) => {
+    setMode(next);
+    setErrors({});
+    setAuthError(null);
+  };
+
   const validate = () => {
     const e = {};
-    if (!form.name.trim()) e.name = 'Name is required';
+    if (mode === 'signup' && !form.name.trim()) e.name = 'Name is required';
     if (!form.email.includes('@') || !form.email.includes('.')) e.email = 'Enter a valid email';
     if (form.password.length < 6) e.password = 'At least 6 characters';
-    if (!form.location) e.location = 'Please choose your area';
+    if (mode === 'signup' && !form.location) e.location = 'Please choose your area';
     return e;
   };
 
@@ -68,18 +75,55 @@ export default function SignupModal({ intent, onClose }) {
     setLoading(true);
     setAuthError(null);
 
+    const authTimeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out after 30 s. Check your connection and try again.')), 30000)
+    );
+
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.password,
-        options: {
-          data: {
-            name: form.name,
-            role,
-            location: form.location,
+      if (mode === 'signin') {
+        console.log('[SignupModal] signIn → calling signInWithPassword', { email: form.email });
+        let result;
+        try {
+          result = await Promise.race([
+            supabase.auth.signInWithPassword({ email: form.email, password: form.password }),
+            authTimeout,
+          ]);
+        } catch (raceErr) {
+          console.error('[SignupModal] signIn → Promise.race threw:', raceErr);
+          throw raceErr;
+        }
+        const { data, error } = result;
+        console.log('[SignupModal] signIn → response received', {
+          hasSession: !!data?.session,
+          hasUser: !!data?.user,
+          error: error ? { message: error.message, status: error.status, code: error.code } : null,
+        });
+        if (error) {
+          console.error('[SignupModal] signIn → Supabase error detail:', error);
+          setAuthError(error.message);
+          setLoading(false);
+          return;
+        }
+        console.log('[SignupModal] signIn → success, waiting for onAuthStateChange');
+        // App.js onAuthStateChange SIGNED_IN routes to dashboard.
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await Promise.race([
+        supabase.auth.signUp({
+          email: form.email,
+          password: form.password,
+          options: {
+            data: {
+              name: form.name,
+              role,
+              location: form.location,
+            },
           },
-        },
-      });
+        }),
+        authTimeout,
+      ]);
 
       console.log('[SignupModal] signUp response:', { data, error });
 
@@ -93,13 +137,12 @@ export default function SignupModal({ intent, onClose }) {
       if (data?.session) {
         // Email confirmation OFF — session returned immediately.
         // App.js onAuthStateChange fires and routes to dashboard.
-        // Loading stays true briefly until the modal unmounts.
+        setLoading(false);
       } else if (data?.user) {
         // Email confirmation ON — user created but not yet confirmed.
         setEmailSent(true);
         setLoading(false);
       } else {
-        // Unexpected: no session and no user
         console.error('[SignupModal] Unexpected empty response:', data);
         setAuthError('Signup returned an unexpected response. Please try again.');
         setLoading(false);
@@ -178,10 +221,10 @@ export default function SignupModal({ intent, onClose }) {
               marginBottom: '0.25rem',
               lineHeight: 1.2,
             }}>
-              🐾 Join TruPaws
+              {mode === 'signin' ? '🐾 Welcome back' : '🐾 Join TruPaws'}
             </div>
             <div style={{ fontSize: '0.82rem', color: 'rgba(245,240,232,0.38)', fontWeight: 300 }}>
-              Free · Takes under 60 seconds
+              {mode === 'signin' ? 'Sign in to your account' : 'Free · Takes under 60 seconds'}
             </div>
           </div>
           <motion.button
@@ -262,8 +305,8 @@ export default function SignupModal({ intent, onClose }) {
             ) : (
               <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
 
-                {/* Role selector */}
-                <div style={{ marginBottom: '1.8rem' }}>
+                {/* Role selector — signup only */}
+                <div style={{ marginBottom: '1.8rem', display: mode === 'signup' ? 'block' : 'none' }}>
                   <div style={{
                     fontSize: '0.72rem',
                     fontWeight: 700,
@@ -320,7 +363,7 @@ export default function SignupModal({ intent, onClose }) {
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} noValidate>
-                  {fields.map((field) => (
+                  {fields.filter(f => mode === 'signup' || (f.key === 'email' || f.key === 'password')).map((field) => (
                     <div key={field.key} style={{ marginBottom: '1rem' }}>
                       <label style={labelStyle}>{field.label}</label>
                       <input
@@ -359,8 +402,8 @@ export default function SignupModal({ intent, onClose }) {
                     </div>
                   ))}
 
-                  {/* Location */}
-                  <div style={{ marginBottom: '1.2rem' }}>
+                  {/* Location — signup only */}
+                  <div style={{ marginBottom: '1.2rem', display: mode === 'signup' ? 'block' : 'none' }}>
                     <label style={labelStyle}>Your Community</label>
                     <select
                       value={form.location}
@@ -475,8 +518,10 @@ export default function SignupModal({ intent, onClose }) {
                             flexShrink: 0,
                           }}
                         />
-                        Creating your account...
+                        {mode === 'signin' ? 'Signing in...' : 'Creating your account...'}
                       </>
+                    ) : mode === 'signin' ? (
+                      'Sign In →'
                     ) : role === 'owner' ? (
                       'Find My Sitter →'
                     ) : (
@@ -487,14 +532,31 @@ export default function SignupModal({ intent, onClose }) {
                   <div style={{
                     textAlign: 'center',
                     marginTop: '0.9rem',
-                    fontSize: '0.72rem',
-                    color: 'rgba(245,240,232,0.25)',
+                    fontSize: '0.82rem',
+                    color: 'rgba(245,240,232,0.35)',
                     fontWeight: 300,
-                    lineHeight: 1.5,
                   }}>
-                    By joining you agree to our{' '}
-                    <span style={{ color: 'rgba(212,168,83,0.5)', cursor: 'pointer' }}>Terms</span> &{' '}
-                    <span style={{ color: 'rgba(212,168,83,0.5)', cursor: 'pointer' }}>Privacy Policy</span>
+                    {mode === 'signin' ? (
+                      <>
+                        No account?{' '}
+                        <span
+                          onClick={() => switchMode('signup')}
+                          style={{ color: '#D4A853', cursor: 'pointer', fontWeight: 500 }}
+                        >
+                          Create one
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        Already have an account?{' '}
+                        <span
+                          onClick={() => switchMode('signin')}
+                          style={{ color: '#D4A853', cursor: 'pointer', fontWeight: 500 }}
+                        >
+                          Sign in
+                        </span>
+                      </>
+                    )}
                   </div>
                 </form>
 

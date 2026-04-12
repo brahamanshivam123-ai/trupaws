@@ -147,15 +147,21 @@ export default function SitterDashboard({ user, onSignOut }) {
     }));
 
   const handleSave = async () => {
+    console.log('[SitterDashboard] handleSave → start');
+
     if (!user?.id) {
+      console.error('[SitterDashboard] handleSave → no user.id', user);
       setSaveError('No user session found — please sign out and sign in again.');
       return;
     }
+
+    console.log('[SitterDashboard] handleSave → user.id:', user.id);
 
     setSaving(true);
     setSaveError(null);
 
     const payload = {
+      id:           user.id,
       bio:          profile.bio,
       services:     profile.services,
       rate:         profile.rate !== ''       ? parseFloat(profile.rate)         : null,
@@ -167,51 +173,34 @@ export default function SitterDashboard({ user, onSignOut }) {
       updated_at:   new Date().toISOString(),
     };
 
+    console.log('[SitterDashboard] handleSave → payload:', payload);
+    console.log('[SitterDashboard] handleSave → calling INSERT on sitter_profiles...');
+
     try {
-      // Check whether a row already exists for this sitter.
-      // Upsert + RLS can 406 on the INSERT leg when the row is new,
-      // so we do an explicit INSERT or UPDATE instead.
-      const { data: existing, error: checkError } = await supabase
+      const { data, error } = await supabase
         .from('sitter_profiles')
-        .select('id')
-        .eq('id', user.id)
-        .maybeSingle();
+        .upsert(payload);
 
-      if (checkError) {
-        console.error('[SitterDashboard] Existence check error:', checkError);
-        setSaveError(checkError.message);
-        return;
-      }
+      console.log('[SitterDashboard] handleSave → UPSERT returned:', { data, error });
 
-      let saveError;
-      if (existing) {
-        console.log('[SitterDashboard] Row exists — running UPDATE');
-        const { error } = await supabase
-          .from('sitter_profiles')
-          .update(payload)
-          .eq('id', user.id);
-        saveError = error;
+      if (error) {
+        console.error('[SitterDashboard] handleSave → UPSERT error full object:', error);
+        console.error('[SitterDashboard] handleSave → error.message:', error.message);
+        console.error('[SitterDashboard] handleSave → error.code:', error.code);
+        console.error('[SitterDashboard] handleSave → error.details:', error.details);
+        console.error('[SitterDashboard] handleSave → error.hint:', error.hint);
+        setSaveError(`${error.message} (code: ${error.code})`);
       } else {
-        console.log('[SitterDashboard] No row yet — running INSERT');
-        const { error } = await supabase
-          .from('sitter_profiles')
-          .insert({ id: user.id, ...payload });
-        saveError = error;
-      }
-
-      if (saveError) {
-        console.error('[SitterDashboard] Save error:', saveError);
-        setSaveError(saveError.message);
-      } else {
-        console.log('[SitterDashboard] Save succeeded.');
+        console.log('[SitterDashboard] handleSave → INSERT succeeded, data:', data);
         setSavedSuccess(true);
         setTimeout(() => setSavedSuccess(false), 3000);
       }
     } catch (err) {
-      console.error('[SitterDashboard] Save exception:', err);
+      console.error('[SitterDashboard] handleSave → caught exception:', err);
       setSaveError(err?.message || 'Something went wrong. Please try again.');
     } finally {
       setSaving(false);
+      console.log('[SitterDashboard] handleSave → done');
     }
   };
 

@@ -53,9 +53,9 @@ export default function App() {
     // Safety net: if getSession() or fetchProfile() hangs (network down,
     // Supabase project paused, CORS rejection), show the landing page anyway.
     const timeout = setTimeout(() => {
-      console.warn('[App] Auth check timed out after 5 s — showing landing page.');
+      console.warn('[App] Auth check timed out after 30 s — showing landing page.');
       markReady();
-    }, 5000);
+    }, 30000);
 
     const init = async () => {
       try {
