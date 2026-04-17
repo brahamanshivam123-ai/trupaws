@@ -93,6 +93,7 @@ const MOCK_SITTERS = [
 const LOCATIONS = ['All Areas', 'Salmon Arm', 'Sicamous', 'Chase', 'Enderby', 'Armstrong', 'Sorrento'];
 
 export default function PetOwnerDashboard({ user, onSignOut, onGoHome }) {
+  const [bookings, setBookings] = useState([]);
   const [sitters, setSitters] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [usingMock, setUsingMock] = useState(false);
@@ -125,6 +126,16 @@ export default function PetOwnerDashboard({ user, onSignOut, onGoHome }) {
       )
       .subscribe();
     return () => supabase.removeChannel(channel);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from('bookings')
+      .select('*, sitter_profiles(display_name)')
+      .eq('pet_owner_id', user.id)
+      .order('start_date', { ascending: false })
+      .then(({ data }) => setBookings(data || []));
   }, [user?.id]);
 
   useEffect(() => {
@@ -319,6 +330,73 @@ export default function PetOwnerDashboard({ user, onSignOut, onGoHome }) {
           padding: 'clamp(2rem, 5vw, 3.5rem) clamp(1.5rem, 4vw, 2rem)',
         }}
       >
+        {/* My Bookings */}
+        {bookings.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{ marginBottom: '2.5rem' }}
+          >
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', color: '#F5F0E8', marginBottom: '1rem' }}>
+              My Bookings
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+              {bookings.map((b) => {
+                const statusColors = {
+                  pending:   { bg: 'rgba(212,168,83,0.15)',  border: 'rgba(212,168,83,0.4)',  text: '#D4A853' },
+                  accepted:  { bg: 'rgba(74,222,128,0.1)',   border: 'rgba(74,222,128,0.35)', text: '#4ade80' },
+                  completed: { bg: 'rgba(245,240,232,0.06)', border: 'rgba(245,240,232,0.15)',text: 'rgba(245,240,232,0.45)' },
+                  cancelled: { bg: 'rgba(220,38,38,0.1)',    border: 'rgba(220,38,38,0.3)',   text: '#f87171' },
+                };
+                const sc = statusColors[b.status] || statusColors.pending;
+                return (
+                  <div
+                    key={b.id}
+                    style={{
+                      background: 'rgba(245,240,232,0.04)',
+                      border: '1px solid rgba(245,240,232,0.08)',
+                      borderRadius: 14,
+                      padding: '1rem 1.2rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600, color: '#F5F0E8', fontSize: '0.95rem' }}>
+                        {b.sitter_profiles?.display_name || 'Sitter'}
+                      </div>
+                      <div style={{ color: 'rgba(245,240,232,0.45)', fontSize: '0.8rem', marginTop: 2 }}>
+                        {b.start_date} → {b.end_date}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ color: '#D4A853', fontWeight: 700, fontSize: '0.95rem' }}>
+                        ${b.total_price}
+                      </span>
+                      <span style={{
+                        background: sc.bg,
+                        border: `1px solid ${sc.border}`,
+                        color: sc.text,
+                        borderRadius: 20,
+                        padding: '3px 12px',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        textTransform: 'capitalize',
+                      }}>
+                        {b.status}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
         {/* Page header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

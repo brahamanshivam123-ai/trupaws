@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../supabase';
+import BookingForm from '../components/BookingForm';
 
 const SERVICES_MAP = {
   dog_walking: '🐕 Dog Walking',
@@ -15,6 +16,8 @@ export default function SitterProfile({ user, onOpenModal, onGoHome, onGoBrowse,
   const [sitter, setSitter] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [showBooking, setShowBooking] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
 
   useEffect(() => {
     supabase
@@ -34,6 +37,14 @@ export default function SitterProfile({ user, onOpenModal, onGoHome, onGoBrowse,
       onOpenModal('find');
     } else {
       onGoDashboard();
+    }
+  }
+
+  function handleBookNow() {
+    if (!user) {
+      onOpenModal('find');
+    } else {
+      setShowBooking(true);
     }
   }
 
@@ -81,6 +92,18 @@ export default function SitterProfile({ user, onOpenModal, onGoHome, onGoBrowse,
           <button type="button" onClick={onGoBrowse} style={backBtnStyle}>← Back to Browse</button>
         </div>
       </div>
+
+      {showBooking && (
+        <BookingForm
+          sitter={sitter}
+          user={user}
+          onClose={() => setShowBooking(false)}
+          onSuccess={() => {
+            setShowBooking(false);
+            setBookingSuccess(true);
+          }}
+        />
+      )}
 
       {/* Profile card */}
       <div style={{ maxWidth: 700, margin: '-30px auto 0', padding: '0 20px' }}>
@@ -150,18 +173,49 @@ export default function SitterProfile({ user, onOpenModal, onGoHome, onGoBrowse,
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={handleContact}
-              style={{
-                marginTop: 32,
-                background: '#2D5016', color: '#F5F0E8', border: 'none', borderRadius: 12,
-                padding: '14px 0', width: '100%', fontSize: '1rem', fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Contact Sitter
-            </button>
+            {bookingSuccess && (
+              <div style={{
+                marginTop: 24,
+                background: 'rgba(45,80,22,0.1)',
+                border: '1px solid rgba(45,80,22,0.25)',
+                borderRadius: 12,
+                padding: '12px 16px',
+                color: '#2D5016',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                textAlign: 'center',
+              }}>
+                Booking request sent!
+              </div>
+            )}
+
+            <div style={{ marginTop: 32, display: 'flex', gap: 12 }}>
+              <button
+                type="button"
+                onClick={handleContact}
+                style={{
+                  flex: 1,
+                  background: 'transparent', color: '#2D5016',
+                  border: '2px solid #2D5016', borderRadius: 12,
+                  padding: '14px 0', fontSize: '1rem', fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Contact Sitter
+              </button>
+              <button
+                type="button"
+                onClick={handleBookNow}
+                style={{
+                  flex: 1,
+                  background: '#D4A853', color: '#fff', border: 'none', borderRadius: 12,
+                  padding: '14px 0', fontSize: '1rem', fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Book Now
+              </button>
+            </div>
           </div>
         </div>
       </div>
