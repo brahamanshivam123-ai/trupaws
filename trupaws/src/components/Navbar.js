@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabase';
 
-export default function Navbar({ user, onOpenModal, onSignOut, onGoHome }) {
+export default function Navbar({ user, onOpenModal, onSignOut, onGoHome, onGoDashboard, onBrowse }) {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     onSignOut?.();
@@ -20,7 +20,7 @@ export default function Navbar({ user, onOpenModal, onSignOut, onGoHome }) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 
   const navLinks = [
-    { label: 'Find a Sitter',   action: () => onOpenModal?.('find') },
+    { label: 'Find a Sitter',   action: () => onBrowse?.() },
     { label: 'How It Works',    action: () => scrollTo('how-it-works') },
     { label: 'Become a Sitter', action: () => onOpenModal?.('become') },
     { label: 'About',           action: () => scrollTo('about') },
@@ -73,14 +73,14 @@ export default function Navbar({ user, onOpenModal, onSignOut, onGoHome }) {
           {navLinks.map((item) => (
             <motion.a
               key={item.label}
-              onClick={item.action || undefined}
+              onClick={item.action}
               whileHover={{ color: '#D4A853' }}
               style={{
                 color: 'rgba(245,240,232,0.65)',
                 textDecoration: 'none',
                 fontSize: '0.88rem',
                 fontWeight: 500,
-                cursor: item.action ? 'pointer' : 'default',
+                cursor: 'pointer',
                 transition: 'color 0.2s',
               }}
             >
@@ -89,28 +89,42 @@ export default function Navbar({ user, onOpenModal, onSignOut, onGoHome }) {
           ))}
 
           {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
-              <div
-                style={{
-                  fontSize: '0.82rem',
-                  color: 'rgba(245,240,232,0.55)',
-                }}
-              >
+            /* Logged-in state */
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ fontSize: '0.82rem', color: 'rgba(245,240,232,0.5)' }}>
                 Hi,{' '}
                 <strong style={{ color: '#F5F0E8' }}>
                   {user.name?.split(' ')[0]}
                 </strong>
               </div>
               <motion.button
+                whileHover={{ scale: 1.05, boxShadow: '0 4px 20px rgba(212,168,83,0.4)' }}
+                whileTap={{ scale: 0.96 }}
+                onClick={onGoDashboard}
+                style={{
+                  background: 'linear-gradient(135deg, #D4A853, #B8892E)',
+                  color: '#1A1A1A',
+                  border: 'none',
+                  borderRadius: '50px',
+                  padding: '0.5rem 1.35rem',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontFamily: "'Inter', sans-serif",
+                }}
+              >
+                My Dashboard
+              </motion.button>
+              <motion.button
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
                 onClick={handleSignOut}
                 style={{
                   background: 'rgba(245,240,232,0.07)',
-                  color: 'rgba(245,240,232,0.6)',
+                  color: 'rgba(245,240,232,0.55)',
                   border: '1px solid rgba(245,240,232,0.14)',
                   borderRadius: '50px',
-                  padding: '0.45rem 1.2rem',
+                  padding: '0.45rem 1.1rem',
                   fontSize: '0.82rem',
                   fontWeight: 500,
                   cursor: 'pointer',
@@ -121,24 +135,46 @@ export default function Navbar({ user, onOpenModal, onSignOut, onGoHome }) {
               </motion.button>
             </div>
           ) : (
-            <motion.button
-              whileHover={{ scale: 1.05, boxShadow: '0 4px 20px rgba(212,168,83,0.4)' }}
-              whileTap={{ scale: 0.96 }}
-              onClick={() => onOpenModal?.('find')}
-              style={{
-                background: 'linear-gradient(135deg, #D4A853, #B8892E)',
-                color: '#1A1A1A',
-                border: 'none',
-                borderRadius: '50px',
-                padding: '0.55rem 1.5rem',
-                fontSize: '0.88rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                fontFamily: "'Inter', sans-serif",
-              }}
-            >
-              Get Started
-            </motion.button>
+            /* Logged-out state */
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <motion.button
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => onOpenModal?.('signin')}
+                style={{
+                  background: 'transparent',
+                  color: 'rgba(245,240,232,0.72)',
+                  border: '1px solid rgba(245,240,232,0.2)',
+                  borderRadius: '50px',
+                  padding: '0.5rem 1.2rem',
+                  fontSize: '0.88rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  fontFamily: "'Inter', sans-serif",
+                  transition: 'border-color 0.2s, color 0.2s',
+                }}
+              >
+                Sign In
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05, boxShadow: '0 4px 20px rgba(212,168,83,0.4)' }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => onOpenModal?.('find')}
+                style={{
+                  background: 'linear-gradient(135deg, #D4A853, #B8892E)',
+                  color: '#1A1A1A',
+                  border: 'none',
+                  borderRadius: '50px',
+                  padding: '0.55rem 1.5rem',
+                  fontSize: '0.88rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontFamily: "'Inter', sans-serif",
+                }}
+              >
+                Get Started
+              </motion.button>
+            </div>
           )}
         </div>
 
@@ -233,6 +269,22 @@ export default function Navbar({ user, onOpenModal, onSignOut, onGoHome }) {
                   Signed in as <strong style={{ color: '#F5F0E8' }}>{user.name}</strong>
                 </div>
                 <button
+                  onClick={() => { setMenuOpen(false); onGoDashboard?.(); }}
+                  style={{
+                    background: 'linear-gradient(135deg, #D4A853, #B8892E)',
+                    color: '#1A1A1A',
+                    border: 'none',
+                    borderRadius: '50px',
+                    padding: '0.8rem',
+                    fontSize: '0.95rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontFamily: "'Inter', sans-serif",
+                  }}
+                >
+                  My Dashboard
+                </button>
+                <button
                   onClick={() => { setMenuOpen(false); handleSignOut(); }}
                   style={{
                     background: 'rgba(245,240,232,0.07)',
@@ -250,24 +302,40 @@ export default function Navbar({ user, onOpenModal, onSignOut, onGoHome }) {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => { setMenuOpen(false); onOpenModal?.('find'); }}
-                style={{
-                  marginTop: '1.2rem',
-                  width: '100%',
-                  background: 'linear-gradient(135deg, #D4A853, #B8892E)',
-                  color: '#1A1A1A',
-                  border: 'none',
-                  borderRadius: '50px',
-                  padding: '0.9rem',
-                  fontSize: '1rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  fontFamily: "'Inter', sans-serif",
-                }}
-              >
-                Get Started — It's Free
-              </button>
+              <div style={{ marginTop: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <button
+                  onClick={() => { setMenuOpen(false); onOpenModal?.('find'); }}
+                  style={{
+                    background: 'linear-gradient(135deg, #D4A853, #B8892E)',
+                    color: '#1A1A1A',
+                    border: 'none',
+                    borderRadius: '50px',
+                    padding: '0.9rem',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontFamily: "'Inter', sans-serif",
+                  }}
+                >
+                  Get Started — It's Free
+                </button>
+                <button
+                  onClick={() => { setMenuOpen(false); onOpenModal?.('signin'); }}
+                  style={{
+                    background: 'transparent',
+                    color: 'rgba(245,240,232,0.7)',
+                    border: '1px solid rgba(245,240,232,0.18)',
+                    borderRadius: '50px',
+                    padding: '0.9rem',
+                    fontSize: '1rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    fontFamily: "'Inter', sans-serif",
+                  }}
+                >
+                  Sign In
+                </button>
+              </div>
             )}
           </motion.div>
         )}

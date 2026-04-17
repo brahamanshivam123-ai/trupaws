@@ -1,0 +1,5 @@
+node_modules/
+build/
+public/images/
+.git/
+package-lock.json

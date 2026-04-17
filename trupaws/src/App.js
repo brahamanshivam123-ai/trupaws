@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from './supabase';
 import Navbar from './components/Navbar';
@@ -11,6 +12,8 @@ import Footer from './components/Footer';
 import SignupModal from './components/SignupModal';
 import PetOwnerDashboard from './components/PetOwnerDashboard';
 import SitterDashboard from './components/SitterDashboard';
+import BrowseSitters from './pages/BrowseSitters';
+import SitterProfile from './pages/SitterProfile';
 
 // Fetch the profiles row for an authenticated session.
 // Falls back to user_metadata if the DB trigger hasn't fired yet.
@@ -33,16 +36,21 @@ async function fetchProfile(session) {
   };
 }
 
+function ProtectedRoute({ user, authReady, children }) {
+  if (!authReady) return null;
+  if (!user) return <Navigate to="/" replace />;
+  return children;
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
-  const [page, setPage] = useState('landing');
-  const [authReady, setAuthReady] = useState(false); // prevents flicker on load
+  const [authReady, setAuthReady] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalIntent, setModalIntent] = useState('find');
+  const navigate = useNavigate();
 
   useEffect(() => {
     let ready = false;
-    // Call once — guards against the timeout and the finally both firing
     const markReady = () => {
       if (!ready) {
         ready = true;
@@ -50,8 +58,6 @@ export default function App() {
       }
     };
 
-    // Safety net: if getSession() or fetchProfile() hangs (network down,
-    // Supabase project paused, CORS rejection), show the landing page anyway.
     const timeout = setTimeout(() => {
       console.warn('[App] Auth check timed out after 30 s — showing landing page.');
       markReady();
@@ -65,7 +71,6 @@ export default function App() {
         } else if (session) {
           const profile = await fetchProfile(session);
           setUser(profile);
-          setPage(profile.role === 'sitter' ? 'sitter-dashboard' : 'owner-dashboard');
         }
       } catch (err) {
         console.error('[App] Auth init exception:', err);
@@ -77,14 +82,13 @@ export default function App() {
 
     init();
 
-    // React to every future auth event (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED…)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session) {
           try {
             const profile = await fetchProfile(session);
             setUser(profile);
-            setPage(profile.role === 'sitter' ? 'sitter-dashboard' : 'owner-dashboard');
+            navigate('/', { replace: true });
             setShowModal(false);
           } catch (err) {
             console.error('[App] fetchProfile error on SIGNED_IN:', err);
@@ -92,7 +96,7 @@ export default function App() {
         }
         if (event === 'SIGNED_OUT') {
           setUser(null);
-          setPage('landing');
+          navigate('/', { replace: true });
         }
       }
     );
@@ -101,19 +105,23 @@ export default function App() {
       clearTimeout(timeout);
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleOpenModal = (intent) => {
     setModalIntent(intent);
     setShowModal(true);
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    // onAuthStateChange SIGNED_OUT handler clears state
+  const handleGoDashboard = () => {
+    if (!user) return;
+    navigate(user.role === 'sitter' ? '/dashboard/sitter' : '/dashboard/owner');
   };
 
-  // Don't render until we've checked for an existing session
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    // onAuthStateChange SIGNED_OUT handler clears state and navigates
+  };
+
   if (!authReady) {
     return (
       <div
@@ -142,67 +150,118 @@ export default function App() {
 
   return (
     <>
-      {page === 'landing' && (
-        <>
-          <Navbar user={user} onOpenModal={handleOpenModal} onSignOut={handleSignOut} onGoHome={() => setPage('landing')} />
-          <Hero
-            onFindSitter={() => handleOpenModal('find')}
-            onBecomeSitter={() => handleOpenModal('become')}
-          />
-          <HowItWorks />
-          <TrustBar />
-          <SitterCards />
-          <Testimonials />
-          <section
-            id="about"
-            style={{
-              padding: 'clamp(4rem, 10vw, 7rem) clamp(1.5rem, 5vw, 4rem)',
-              background: 'linear-gradient(180deg, rgba(13,27,8,0) 0%, rgba(8,15,5,1) 100%)',
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ maxWidth: '640px', margin: '0 auto' }}>
-              <div style={{
-                fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.2em',
-                textTransform: 'uppercase', color: '#D4A853', marginBottom: '1rem',
-              }}>
-                About TruPaws
-              </div>
-              <h2 style={{
-                fontFamily: "'Playfair Display', serif",
-                fontSize: 'clamp(1.8rem, 4vw, 2.8rem)',
-                fontWeight: 700, color: '#F5F0E8', lineHeight: 1.2, marginBottom: '1.4rem',
-              }}>
-                Built for Shuswap, BC
-              </h2>
-              <p style={{
-                fontSize: '1rem', color: 'rgba(245,240,232,0.58)', lineHeight: 1.8,
-                fontWeight: 300, marginBottom: '1rem',
-              }}>
-                TruPaws is a local pet-sitting marketplace connecting pet owners with trusted,
-                vetted sitters across Salmon Arm, Sicamous, Chase, Enderby, Armstrong, Sorrento,
-                and surrounding communities.
-              </p>
-              <p style={{
-                fontSize: '1rem', color: 'rgba(245,240,232,0.58)', lineHeight: 1.8, fontWeight: 300,
-              }}>
-                We believe your pets deserve care from someone who knows your neighbourhood —
-                not a corporate chain. Every sitter on TruPaws is a local community member,
-                reviewed by real Shuswap families.
-              </p>
-            </div>
-          </section>
-          <Footer />
-        </>
-      )}
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <>
+              <Navbar
+                user={user}
+                onOpenModal={handleOpenModal}
+                onSignOut={handleSignOut}
+                onGoHome={() => navigate('/')}
+                onGoDashboard={handleGoDashboard}
+                onBrowse={() => navigate('/browse')}
+              />
+              <Hero
+                user={user}
+                onFindSitter={() => handleOpenModal('find')}
+                onBecomeSitter={() => handleOpenModal('become')}
+                onGoDashboard={handleGoDashboard}
+              />
+              <HowItWorks />
+              <TrustBar />
+              <SitterCards />
+              <Testimonials />
+              <section
+                id="about"
+                style={{
+                  padding: 'clamp(4rem, 10vw, 7rem) clamp(1.5rem, 5vw, 4rem)',
+                  background: 'linear-gradient(180deg, rgba(13,27,8,0) 0%, rgba(8,15,5,1) 100%)',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ maxWidth: '640px', margin: '0 auto' }}>
+                  <div style={{
+                    fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.2em',
+                    textTransform: 'uppercase', color: '#D4A853', marginBottom: '1rem',
+                  }}>
+                    About TruPaws
+                  </div>
+                  <h2 style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: 'clamp(1.8rem, 4vw, 2.8rem)',
+                    fontWeight: 700, color: '#F5F0E8', lineHeight: 1.2, marginBottom: '1.4rem',
+                  }}>
+                    Built for Shuswap, BC
+                  </h2>
+                  <p style={{
+                    fontSize: '1rem', color: 'rgba(245,240,232,0.58)', lineHeight: 1.8,
+                    fontWeight: 300, marginBottom: '1rem',
+                  }}>
+                    TruPaws is a local pet-sitting marketplace connecting pet owners with trusted,
+                    vetted sitters across Salmon Arm, Sicamous, Chase, Enderby, Armstrong, Sorrento,
+                    and surrounding communities.
+                  </p>
+                  <p style={{
+                    fontSize: '1rem', color: 'rgba(245,240,232,0.58)', lineHeight: 1.8, fontWeight: 300,
+                  }}>
+                    We believe your pets deserve care from someone who knows your neighbourhood —
+                    not a corporate chain. Every sitter on TruPaws is a local community member,
+                    reviewed by real Shuswap families.
+                  </p>
+                </div>
+              </section>
+              <Footer />
+            </>
+          }
+        />
 
-      {page === 'owner-dashboard' && (
-        <PetOwnerDashboard user={user} onSignOut={handleSignOut} onGoHome={() => setPage('landing')} />
-      )}
+        <Route
+          path="/browse"
+          element={
+            <BrowseSitters
+              user={user}
+              onOpenModal={handleOpenModal}
+              onGoHome={() => navigate('/')}
+              onGoDashboard={handleGoDashboard}
+            />
+          }
+        />
 
-      {page === 'sitter-dashboard' && (
-        <SitterDashboard user={user} onSignOut={handleSignOut} onGoHome={() => setPage('landing')} />
-      )}
+        <Route
+          path="/sitter/:id"
+          element={
+            <SitterProfile
+              user={user}
+              onOpenModal={handleOpenModal}
+              onGoHome={() => navigate('/')}
+              onGoBrowse={() => navigate('/browse')}
+              onGoDashboard={handleGoDashboard}
+            />
+          }
+        />
+
+        <Route
+          path="/dashboard/owner"
+          element={
+            <ProtectedRoute user={user} authReady={authReady}>
+              <PetOwnerDashboard user={user} onSignOut={handleSignOut} onGoHome={() => navigate('/')} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/dashboard/sitter"
+          element={
+            <ProtectedRoute user={user} authReady={authReady}>
+              <SitterDashboard user={user} onSignOut={handleSignOut} onGoHome={() => navigate('/')} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
 
       <AnimatePresence>
         {showModal && (

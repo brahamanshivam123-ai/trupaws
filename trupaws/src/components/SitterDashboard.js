@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabase';
+import ChatPanel from './ChatPanel';
 
 const ALL_SERVICES = [
   'Dog Walking',
@@ -91,6 +92,32 @@ export default function SitterDashboard({ user, onSignOut, onGoHome }) {
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [focusedField, setFocusedField] = useState(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Unread message count + real-time badge
+  useEffect(() => {
+    if (!user?.id) return;
+    const loadUnread = async () => {
+      const { count } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('receiver_id', user.id)
+        .is('read_at', null);
+      setUnreadCount(count || 0);
+    };
+    loadUnread();
+
+    const channel = supabase
+      .channel(`unread-sitter-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` },
+        () => setUnreadCount((n) => n + 1)
+      )
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [user?.id]);
 
   // Load existing sitter_profile from Supabase on mount
   useEffect(() => {
@@ -258,16 +285,18 @@ export default function SitterDashboard({ user, onSignOut, onGoHome }) {
             ←
           </motion.button>
           <div
+            onClick={onGoHome}
             style={{
               fontFamily: "'Playfair Display', serif",
               fontSize: '1.3rem', fontWeight: 700, color: '#F5F0E8',
               display: 'flex', alignItems: 'center', gap: '0.4rem',
+              cursor: 'pointer', userSelect: 'none',
             }}
           >
             🐾 Tru<span style={{ color: '#D4A853' }}>Paws</span>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div
             style={{
               background: 'rgba(212,168,83,0.1)',
@@ -293,6 +322,51 @@ export default function SitterDashboard({ user, onSignOut, onGoHome }) {
               {user?.name?.split(' ')[0]}
             </strong>
           </div>
+          {/* Messages button */}
+          <motion.button
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={() => { setChatOpen(true); setUnreadCount(0); }}
+            style={{
+              position: 'relative',
+              background: chatOpen ? 'rgba(212,168,83,0.14)' : 'rgba(245,240,232,0.06)',
+              border: `1px solid ${chatOpen ? 'rgba(212,168,83,0.35)' : 'rgba(245,240,232,0.1)'}`,
+              borderRadius: '50px',
+              padding: '0.4rem 1rem',
+              color: chatOpen ? '#D4A853' : 'rgba(245,240,232,0.55)',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              fontFamily: "'Inter', sans-serif",
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              transition: 'background 0.2s, border-color 0.2s, color 0.2s',
+            }}
+          >
+            💬 Messages
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '50%',
+                  background: '#D4A853',
+                  color: '#1A1A1A',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid #080F05',
+                }}
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </motion.button>
           <motion.button
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
@@ -849,6 +923,36 @@ export default function SitterDashboard({ user, onSignOut, onGoHome }) {
           </p>
         </motion.div>
       </div>
+
+      {/* Chat panel backdrop */}
+      <AnimatePresence>
+        {chatOpen && (
+          <>
+            <motion.div
+              key="chat-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              onClick={() => setChatOpen(false)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 199,
+                background: 'rgba(0,0,0,0.45)',
+                backdropFilter: 'blur(3px)',
+              }}
+            />
+            <ChatPanel
+              key="chat-panel"
+              currentUser={user}
+              initialRecipient={null}
+              onClose={() => setChatOpen(false)}
+              onUnreadCleared={() => setUnreadCount(0)}
+            />
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
