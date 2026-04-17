@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
+import SitterMap from '../components/SitterMap';
 
 const SERVICES_MAP = {
   dog_walking: '🐕 Dog Walking',
@@ -75,6 +76,9 @@ export default function BrowseSitters({ user, onOpenModal, onGoHome, onGoDashboa
 
       {/* Sitter grid */}
       <div style={{ maxWidth: 1000, margin: '0 auto', padding: '40px 20px' }}>
+        {!loading && sitters.some((s) => s.location || (s.lat && s.lng)) && (
+          <SitterMap sitters={sitters} />
+        )}
         {loading ? (
           <p style={{ textAlign: 'center', color: '#2D5016' }}>Loading sitters...</p>
         ) : sitters.length === 0 ? (
