@@ -220,12 +220,22 @@ export default function App() {
         <Route
           path="/browse"
           element={
-            <BrowseSitters
-              user={user}
-              onOpenModal={handleOpenModal}
-              onGoHome={() => navigate('/')}
-              onGoDashboard={handleGoDashboard}
-            />
+            <>
+              <Navbar
+                user={user}
+                onOpenModal={handleOpenModal}
+                onSignOut={handleSignOut}
+                onGoHome={() => navigate('/')}
+                onGoDashboard={handleGoDashboard}
+                onBrowse={() => navigate('/browse')}
+              />
+              <BrowseSitters
+                user={user}
+                onOpenModal={handleOpenModal}
+                onGoHome={() => navigate('/')}
+                onGoDashboard={handleGoDashboard}
+              />
+            </>
           }
         />
 

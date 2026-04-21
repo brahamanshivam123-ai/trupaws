@@ -23,7 +23,7 @@ export default function BrowseSitters({ user, onOpenModal, onGoHome, onGoDashboa
   useEffect(() => {
     supabase
       .from('sitter_profiles')
-      .select('*')
+      .select('*, profiles(name)')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .then(({ data, error }) => {
@@ -139,7 +139,7 @@ function SitterCard({ sitter, index, onContact, onViewProfile }) {
       <div style={{ padding: '18px 20px 20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <h3 style={{ margin: 0, color: '#2D5016', fontSize: '1.15rem' }}>
-            {sitter.display_name || 'Sitter'}
+            {sitter.profiles?.name || sitter.display_name || 'Sitter'}
           </h3>
           {sitter.rate && (
             <span style={{
