@@ -165,7 +165,7 @@ export default function SignupModal({ intent, onClose }) {
         backdropFilter: 'blur(14px)',
         WebkitBackdropFilter: 'blur(14px)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
         padding: '1rem',
         overflowY: 'auto',

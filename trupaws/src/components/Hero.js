@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -185,6 +186,7 @@ function SectionHeader({ eyebrow, headline }) {
    Main export
 ════════════════════════════════════════ */
 export default function Hero({ user, onFindSitter, onBecomeSitter, onGoDashboard }) {
+  const navigate  = useNavigate();
   const heroRef   = useRef(null);
   const heroBgRef = useRef(null);
 
@@ -353,7 +355,7 @@ export default function Hero({ user, onFindSitter, onBecomeSitter, onGoDashboard
                   Go to My Dashboard →
                 </motion.button>
                 <motion.button
-                  onClick={onFindSitter}
+                  onClick={() => navigate('/browse')}
                   whileHover={{ scale: 1.05, background: 'rgba(255,255,255,0.18)' }}
                   whileTap={{ scale: 0.97 }}
                   style={{
