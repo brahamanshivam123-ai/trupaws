@@ -21,24 +21,20 @@ export default function BrowseSitters({ user, onOpenModal, onGoHome, onGoDashboa
 
   // Fetch runs on mount only. No auth check — publicly readable.
   useEffect(() => {
-    const fetchSitters = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('sitter_profiles')
-          .select('*')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false });
+    supabase
+      .from('sitter_profiles')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
         if (error) {
           console.error('[BrowseSitters] query error:', error.message);
           setSitters([]);
         } else {
           setSitters(data || []);
         }
-      } finally {
         setLoading(false);
-      }
-    };
-    fetchSitters();
+      });
   }, []);
 
   // Only called from the Contact button click handler — never on load.
