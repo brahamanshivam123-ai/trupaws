@@ -119,7 +119,7 @@ export default function BookingForm({ sitter, user, onClose, onSuccess }) {
               Request sent!
             </h2>
             <p style={{ color: '#666', margin: 0 }}>
-              {sitter.display_name} will confirm your booking soon.
+              {sitter.profiles?.name || sitter.display_name || 'Your sitter'} will confirm your booking soon.
             </p>
           </div>
         ) : (
@@ -132,7 +132,7 @@ export default function BookingForm({ sitter, user, onClose, onSuccess }) {
                 fontSize: '1.5rem',
               }}
             >
-              Book {sitter.display_name}
+              Book {sitter.profiles?.name || sitter.display_name || 'Sitter'}
             </h2>
             <p style={{ margin: '0 0 24px', color: '#888', fontSize: '0.88rem' }}>
               ${sitter.rate}/day

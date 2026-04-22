@@ -132,7 +132,7 @@ export default function PetOwnerDashboard({ user, onSignOut, onGoHome }) {
     if (!user?.id) return;
     supabase
       .from('bookings')
-      .select('*, sitter_profiles(display_name)')
+      .select('*, sitter_profiles(id, profiles(name))')
       .eq('pet_owner_id', user.id)
       .order('start_date', { ascending: false })
       .then(({ data }) => setBookings(data || []));
@@ -367,7 +367,7 @@ export default function PetOwnerDashboard({ user, onSignOut, onGoHome }) {
                   >
                     <div>
                       <div style={{ fontWeight: 600, color: '#F5F0E8', fontSize: '0.95rem' }}>
-                        {b.sitter_profiles?.display_name || 'Sitter'}
+                        {b.sitter_profiles?.profiles?.name || 'Sitter'}
                       </div>
                       <div style={{ color: 'rgba(245,240,232,0.45)', fontSize: '0.8rem', marginTop: 2 }}>
                         {b.start_date} → {b.end_date}

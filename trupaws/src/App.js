@@ -59,9 +59,9 @@ export default function App() {
     };
 
     const timeout = setTimeout(() => {
-      console.warn('[App] Auth check timed out after 30 s — showing landing page.');
+      console.warn('[App] Auth check timed out — showing landing page.');
       markReady();
-    }, 30000);
+    }, 5000);
 
     const init = async () => {
       try {
@@ -84,6 +84,17 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (event === 'INITIAL_SESSION') {
+          markReady();
+          if (session) {
+            try {
+              const profile = await fetchProfile(session);
+              setUser(profile);
+            } catch (err) {
+              console.error('[App] fetchProfile error on INITIAL_SESSION:', err);
+            }
+          }
+        }
         if (event === 'SIGNED_IN' && session) {
           try {
             const profile = await fetchProfile(session);
@@ -242,13 +253,23 @@ export default function App() {
         <Route
           path="/sitter/:id"
           element={
-            <SitterProfile
-              user={user}
-              onOpenModal={handleOpenModal}
-              onGoHome={() => navigate('/')}
-              onGoBrowse={() => navigate('/browse')}
-              onGoDashboard={handleGoDashboard}
-            />
+            <>
+              <Navbar
+                user={user}
+                onOpenModal={handleOpenModal}
+                onSignOut={handleSignOut}
+                onGoHome={() => navigate('/')}
+                onGoDashboard={handleGoDashboard}
+                onBrowse={() => navigate('/browse')}
+              />
+              <SitterProfile
+                user={user}
+                onOpenModal={handleOpenModal}
+                onGoHome={() => navigate('/')}
+                onGoBrowse={() => navigate('/browse')}
+                onGoDashboard={handleGoDashboard}
+              />
+            </>
           }
         />
 

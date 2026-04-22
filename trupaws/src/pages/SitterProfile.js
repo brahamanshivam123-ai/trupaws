@@ -22,8 +22,8 @@ export default function SitterProfile({ user, onOpenModal, onGoHome, onGoBrowse,
   useEffect(() => {
     supabase
       .from('sitter_profiles')
-      .select('*')
-      .eq('user_id', id)
+      .select('*, profiles(name)')
+      .eq('id', id)
       .single()
       .then(({ data, error }) => {
         if (error || !data) setNotFound(true);
@@ -131,7 +131,7 @@ export default function SitterProfile({ user, onOpenModal, onGoHome, onGoBrowse,
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <h1 style={{ margin: 0, color: '#2D5016', fontSize: '1.8rem', fontWeight: 700 }}>
-                  {sitter.display_name || 'Sitter'}
+                  {sitter.profiles?.name || sitter.display_name || 'Sitter'}
                 </h1>
                 {sitter.location && (
                   <p style={{ margin: '6px 0 0', color: '#888', fontSize: '0.9rem' }}>

@@ -94,8 +94,8 @@ export default function BrowseSitters({ user, onOpenModal, onGoHome, onGoDashboa
                 key={sitter.id}
                 sitter={sitter}
                 index={i}
-                onContact={() => handleContact(sitter.user_id)}
-                onViewProfile={() => navigate(`/sitter/${sitter.user_id}`)}
+                onContact={() => handleContact(sitter.id)}
+                onViewProfile={() => navigate(`/sitter/${sitter.id}`)}
               />
             ))}
           </div>
