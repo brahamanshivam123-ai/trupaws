@@ -23,11 +23,16 @@ export default function BrowseSitters({ user, onOpenModal, onGoHome, onGoDashboa
   useEffect(() => {
     const fetchSitters = async () => {
       try {
-        const { data, error } = await supabase
-          .from('sitter_profiles')
-          .select('*')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false });
+        const { data, error } = await Promise.race([
+          supabase
+            .from('sitter_profiles')
+            .select('*')
+            .eq('is_active', true)
+            .order('created_at', { ascending: false }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Request timed out')), 8000)
+          ),
+        ]);
         if (error) {
           console.error('[BrowseSitters] query error:', error.message);
           setSitters([]);
